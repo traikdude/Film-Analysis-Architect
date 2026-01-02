@@ -1,0 +1,5 @@
+{
+  "name": "Film Analysis Architect",
+  "description": "An AI-powered cinematic analysis tool that curates and critiques films based on granular genre and thematic criteria.",
+  "requestFramePermissions": []
+}
