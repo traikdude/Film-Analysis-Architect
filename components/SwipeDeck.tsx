@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Movie, Theme } from '../types';
-import { Heart, X, Info, Youtube, Check, Bookmark } from 'lucide-react';
+import { Heart, X, Info, Youtube, Check, Bookmark, Eye } from 'lucide-react';
 
 interface SwipeDeckProps {
   movies: Movie[];
@@ -8,21 +8,33 @@ interface SwipeDeckProps {
   onLike: (movie: Movie) => void;
   onDislike: (movie: Movie) => void;
   onMaybe: (movie: Movie) => void;
+  onSeen: (movie: Movie) => void;
   onComplete: () => void;
 }
 
-// Maps genre text → AI-generated atmospheric poster background
+// Maps genre/subcategory text → illustrated poster background
 const getGenreArt = (genre: string, title: string): string => {
   const g = (genre + ' ' + title).toLowerCase();
-  if (g.match(/horror|supernatural|ghost|demon|haunted|slasher|creature|folk|psychological horror|cult/)) return '/genre-art/horror.png';
+  // Horror subcategories (most specific first)
+  if (g.match(/lovecraft|cosmic|elder god|dimensional|space horror/)) return '/genre-art/horror-cosmic.png';
+  if (g.match(/folk horror|pagan|ritual|rural horror|witch|cult horror|wicker/)) return '/genre-art/horror-folk.png';
+  if (g.match(/slasher|masked killer|teen slasher|serial killer|giallo|splatter/)) return '/genre-art/horror-slasher.png';
+  if (g.match(/body horror|transformation|medical horror|biological|parasitic|mutation/)) return '/genre-art/horror-body.png';
+  if (g.match(/psychological horror|gaslighting|reality distort|isolation horror|dream|nightmare/)) return '/genre-art/horror-psychological.png';
+  if (g.match(/ghost|demonic|haunted|paranormal|supernatural|spirit|angel|demon|curse|religious horror/)) return '/genre-art/horror-supernatural.png';
+  if (g.match(/horror|supernatural|zombie|vampire|werewolf|creature|monster/)) return '/genre-art/horror.png';
+  // Sci-Fi
   if (g.match(/sci.?fi|science.?fiction|space|alien|cyber|future|robot|dystopia|apocalypse|tech/)) return '/genre-art/scifi.png';
-  if (g.match(/thriller|suspense|mystery|crime|noir|conspiracy|paranoia|psychological thriller/)) return '/genre-art/thriller.png';
+  // Thriller
+  if (g.match(/thriller|suspense|mystery|crime|noir|conspiracy|paranoia/)) return '/genre-art/thriller.png';
+  // Action
   if (g.match(/action|adventure|war|combat|explosion|survival/)) return '/genre-art/action.png';
+  // Drama
   if (g.match(/drama|romance|indie|independent|art|emotion|family|period/)) return '/genre-art/drama.png';
   return '/genre-art/default.png';
 };
 
-export const SwipeDeck: React.FC<SwipeDeckProps> = ({ movies, theme, onLike, onDislike, onMaybe, onComplete }) => {
+export const SwipeDeck: React.FC<SwipeDeckProps> = ({ movies, theme, onLike, onDislike, onMaybe, onSeen, onComplete }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
@@ -311,38 +323,46 @@ export const SwipeDeck: React.FC<SwipeDeckProps> = ({ movies, theme, onLike, onD
         </div>
       </div>
 
-      {/* Action Buttons: Skip | Info | Maybe | Save */}
-      <div className="flex items-center justify-center gap-4 mt-4 z-20">
+      {/* Action Buttons: Skip | Info | Maybe | Seen | Save */}
+      <div className="flex items-center justify-center gap-3 mt-4 z-20">
         <button
           onClick={() => triggerSwipe('left')}
-          className="w-14 h-14 rounded-full bg-black/40 hover:bg-black/60 border border-red-500/20 hover:border-red-500/50 flex items-center justify-center text-red-400 active:scale-90 transition-all shadow-lg hover:shadow-red-900/20"
+          className="w-13 h-13 w-[52px] h-[52px] rounded-full bg-black/40 hover:bg-black/60 border border-red-500/20 hover:border-red-500/50 flex items-center justify-center text-red-400 active:scale-90 transition-all shadow-lg hover:shadow-red-900/20"
           title="Skip"
         >
-          <X className="w-6 h-6" />
+          <X className="w-5 h-5" />
         </button>
 
         <button
           onClick={() => setShowDetails(true)}
-          className="w-11 h-11 rounded-full bg-black/40 hover:bg-black/60 border border-indigo-500/20 hover:border-indigo-500/50 flex items-center justify-center text-indigo-300 active:scale-90 transition-all shadow-lg hover:shadow-indigo-900/20"
+          className="w-10 h-10 rounded-full bg-black/40 hover:bg-black/60 border border-indigo-500/20 hover:border-indigo-500/50 flex items-center justify-center text-indigo-300 active:scale-90 transition-all shadow-lg hover:shadow-indigo-900/20"
           title="View Details"
         >
-          <Info className="w-5 h-5" />
+          <Info className="w-4 h-4" />
         </button>
 
         <button
           onClick={() => { onMaybe(activeMovie); setCurrentIndex(prev => prev + 1); setShowDetails(false); resetHoloCoordinates(); }}
-          className="w-11 h-11 rounded-full bg-black/40 hover:bg-black/60 border border-amber-500/20 hover:border-amber-500/50 flex items-center justify-center text-amber-400 active:scale-90 transition-all shadow-lg hover:shadow-amber-900/20"
-          title="Maybe — save to Consider Later list"
+          className="w-10 h-10 rounded-full bg-black/40 hover:bg-black/60 border border-amber-500/20 hover:border-amber-500/50 flex items-center justify-center text-amber-400 active:scale-90 transition-all shadow-lg hover:shadow-amber-900/20"
+          title="Maybe — save to Consider Later"
         >
-          <Bookmark className="w-5 h-5" />
+          <Bookmark className="w-4 h-4" />
+        </button>
+
+        <button
+          onClick={() => { onSeen(activeMovie); setCurrentIndex(prev => prev + 1); setShowDetails(false); resetHoloCoordinates(); }}
+          className="w-10 h-10 rounded-full bg-black/40 hover:bg-black/60 border border-sky-500/20 hover:border-sky-500/50 flex items-center justify-center text-sky-400 active:scale-90 transition-all shadow-lg hover:shadow-sky-900/20"
+          title="Already Seen — mark as watched"
+        >
+          <Eye className="w-4 h-4" />
         </button>
 
         <button
           onClick={() => triggerSwipe('right')}
-          className="w-14 h-14 rounded-full bg-black/40 hover:bg-black/60 border border-green-500/20 hover:border-green-500/50 flex items-center justify-center text-green-400 active:scale-90 transition-all shadow-lg hover:shadow-green-900/20"
+          className="w-[52px] h-[52px] rounded-full bg-black/40 hover:bg-black/60 border border-green-500/20 hover:border-green-500/50 flex items-center justify-center text-green-400 active:scale-90 transition-all shadow-lg hover:shadow-green-900/20"
           title="Save"
         >
-          <Heart className="w-6 h-6 fill-current" />
+          <Heart className="w-5 h-5 fill-current" />
         </button>
       </div>
 
