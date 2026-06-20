@@ -1,16 +1,28 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Movie, Theme } from '../types';
-import { Heart, X, Info, Youtube, Flame, Check, AlertCircle } from 'lucide-react';
+import { Heart, X, Info, Youtube, Check, Bookmark } from 'lucide-react';
 
 interface SwipeDeckProps {
   movies: Movie[];
   theme: Theme;
   onLike: (movie: Movie) => void;
   onDislike: (movie: Movie) => void;
+  onMaybe: (movie: Movie) => void;
   onComplete: () => void;
 }
 
-export const SwipeDeck: React.FC<SwipeDeckProps> = ({ movies, theme, onLike, onDislike, onComplete }) => {
+// Maps genre text → AI-generated atmospheric poster background
+const getGenreArt = (genre: string, title: string): string => {
+  const g = (genre + ' ' + title).toLowerCase();
+  if (g.match(/horror|supernatural|ghost|demon|haunted|slasher|creature|folk|psychological horror|cult/)) return '/genre-art/horror.png';
+  if (g.match(/sci.?fi|science.?fiction|space|alien|cyber|future|robot|dystopia|apocalypse|tech/)) return '/genre-art/scifi.png';
+  if (g.match(/thriller|suspense|mystery|crime|noir|conspiracy|paranoia|psychological thriller/)) return '/genre-art/thriller.png';
+  if (g.match(/action|adventure|war|combat|explosion|survival/)) return '/genre-art/action.png';
+  if (g.match(/drama|romance|indie|independent|art|emotion|family|period/)) return '/genre-art/drama.png';
+  return '/genre-art/default.png';
+};
+
+export const SwipeDeck: React.FC<SwipeDeckProps> = ({ movies, theme, onLike, onDislike, onMaybe, onComplete }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
@@ -253,87 +265,29 @@ export const SwipeDeck: React.FC<SwipeDeckProps> = ({ movies, theme, onLike, onD
                 />
               ) : null}
 
-              {/* ─── Cinematic Fallback Poster Art ─────────────────────────── */}
+              {/* ─── Genre Art Fallback ─────────────────────────────────── */}
               <div
                 className="w-full h-full flex-col items-center justify-center relative overflow-hidden"
                 style={{ display: activeMovie.image ? 'none' : 'flex' }}
               >
-                {/* Film grain texture overlay */}
-                <div className="absolute inset-0 opacity-[0.07]" style={{
+                {/* AI-generated genre background image */}
+                <img
+                  src={getGenreArt(activeMovie.classification || '', activeMovie.title)}
+                  alt={`${activeMovie.classification || 'Cinema'} atmosphere`}
+                  className="absolute inset-0 w-full h-full object-cover pointer-events-none"
+                />
+                {/* Dark vignette overlay so text is readable */}
+                <div className="absolute inset-0" style={{
+                  background: 'radial-gradient(ellipse at center, rgba(0,0,0,0.15) 0%, rgba(0,0,0,0.60) 100%)'
+                }} />
+                {/* Film grain */}
+                <div className="absolute inset-0 opacity-[0.06]" style={{
                   backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E")`,
                   backgroundRepeat: 'repeat'
                 }} />
-
-                {/* Genre-keyed gradient background */}
-                {(() => {
-                  const genre = (activeMovie.classification || activeMovie.genre_analysis || '').toLowerCase();
-                  let grad = 'from-[#0a0a1a] via-[#0d1128] to-[#070714]'; // default deep blue-black
-                  let accentColor = '#6366f1';
-                  let accentColorDim = '#312e81';
-                  if (genre.includes('horror') || genre.includes('supernatural')) {
-                    grad = 'from-[#1a0005] via-[#0d0008] to-[#000005]';
-                    accentColor = '#dc2626'; accentColorDim = '#450a0a';
-                  } else if (genre.includes('thriller') || genre.includes('noir')) {
-                    grad = 'from-[#0a0a0a] via-[#111115] to-[#05050f]';
-                    accentColor = '#94a3b8'; accentColorDim = '#1e293b';
-                  } else if (genre.includes('sci-fi') || genre.includes('science fiction')) {
-                    grad = 'from-[#020c1b] via-[#061428] to-[#010a18]';
-                    accentColor = '#38bdf8'; accentColorDim = '#0c4a6e';
-                  } else if (genre.includes('comedy') || genre.includes('dark comedy')) {
-                    grad = 'from-[#1a0e00] via-[#120900] to-[#080400]';
-                    accentColor = '#f59e0b'; accentColorDim = '#451a03';
-                  }
-                  return (
-                    <>
-                      <div className={`absolute inset-0 bg-gradient-to-b ${grad}`} />
-                      {/* Cinematic vignette */}
-                      <div className="absolute inset-0" style={{
-                        background: 'radial-gradient(ellipse at center, transparent 30%, rgba(0,0,0,0.75) 100%)'
-                      }} />
-                      {/* Atmospheric glow orb */}
-                      <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-48 h-48 rounded-full blur-3xl opacity-20"
-                        style={{ background: accentColor }} />
-                      {/* Horizontal scan lines */}
-                      <div className="absolute inset-0 opacity-[0.025]" style={{
-                        backgroundImage: 'repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(255,255,255,1) 2px, rgba(255,255,255,1) 3px)',
-                        backgroundSize: '100% 4px'
-                      }} />
-                      {/* Corner accent lines — cinematic frame */}
-                      {[['top-5 left-5','top-5 left-5'],['top-5 right-5','top-5 right-5'],['bottom-5 left-5','bottom-5 left-5'],['bottom-5 right-5','bottom-5 right-5']].map((_,i) => (
-                        <div key={i} className={`absolute ${i===0?'top-5 left-5':i===1?'top-5 right-5':i===2?'bottom-5 left-5':'bottom-5 right-5'} w-8 h-8 opacity-40`}
-                          style={{
-                            borderTop: i < 2 ? `2px solid ${accentColor}` : 'none',
-                            borderBottom: i >= 2 ? `2px solid ${accentColor}` : 'none',
-                            borderLeft: i % 2 === 0 ? `2px solid ${accentColor}` : 'none',
-                            borderRight: i % 2 === 1 ? `2px solid ${accentColor}` : 'none',
-                          }}
-                        />
-                      ))}
-                      {/* Central title composition */}
-                      <div className="relative z-10 flex flex-col items-center justify-center text-center px-8 gap-4">
-                        {/* Genre pill */}
-                        <span className="text-[9px] font-black tracking-[0.3em] uppercase px-3 py-1 rounded-full border opacity-70"
-                          style={{ borderColor: accentColor, color: accentColor }}>
-                          {(activeMovie.classification || 'Cinema').split('|')[0].trim()}
-                        </span>
-                        {/* Large typographic title */}
-                        <h1 className="text-3xl font-black text-white leading-tight drop-shadow-2xl text-center"
-                          style={{ textShadow: `0 0 40px ${accentColor}60, 0 2px 4px rgba(0,0,0,0.9)` }}>
-                          {activeMovie.title}
-                        </h1>
-                        {/* Divider line */}
-                        <div className="w-12 h-px opacity-50" style={{ background: accentColor }} />
-                        {/* Year */}
-                        <span className="text-xs font-semibold tracking-widest opacity-50 text-white uppercase">
-                          {activeMovie.year}
-                        </span>
-                      </div>
-                      {/* Letterbox bars — cinematic feel */}
-                      <div className="absolute top-0 inset-x-0 h-[5%] bg-black opacity-70" />
-                      <div className="absolute bottom-0 inset-x-0 h-[5%] bg-black opacity-70" />
-                    </>
-                  );
-                })()}
+                {/* Letterbox bars */}
+                <div className="absolute top-0 inset-x-0 h-[4%] bg-black opacity-80" />
+                <div className="absolute bottom-0 inset-x-0 h-[4%] bg-black opacity-80" />
               </div>
 
               {/* Bottom Info Gradient */}
@@ -357,28 +311,36 @@ export const SwipeDeck: React.FC<SwipeDeckProps> = ({ movies, theme, onLike, onD
         </div>
       </div>
 
-      {/* Manual Actions buttons */}
-      <div className="flex items-center justify-center gap-6 mt-4 z-20">
+      {/* Action Buttons: Skip | Info | Maybe | Save */}
+      <div className="flex items-center justify-center gap-4 mt-4 z-20">
         <button
           onClick={() => triggerSwipe('left')}
           className="w-14 h-14 rounded-full bg-black/40 hover:bg-black/60 border border-red-500/20 hover:border-red-500/50 flex items-center justify-center text-red-400 active:scale-90 transition-all shadow-lg hover:shadow-red-900/20"
-          title="Skip/Dislike"
+          title="Skip"
         >
           <X className="w-6 h-6" />
         </button>
 
         <button
           onClick={() => setShowDetails(true)}
-          className="w-12 h-12 rounded-full bg-black/40 hover:bg-black/60 border border-indigo-500/20 hover:border-indigo-500/50 flex items-center justify-center text-indigo-300 active:scale-90 transition-all shadow-lg hover:shadow-indigo-900/20"
+          className="w-11 h-11 rounded-full bg-black/40 hover:bg-black/60 border border-indigo-500/20 hover:border-indigo-500/50 flex items-center justify-center text-indigo-300 active:scale-90 transition-all shadow-lg hover:shadow-indigo-900/20"
           title="View Details"
         >
           <Info className="w-5 h-5" />
         </button>
 
         <button
+          onClick={() => { onMaybe(activeMovie); setCurrentIndex(prev => prev + 1); setShowDetails(false); resetHoloCoordinates(); }}
+          className="w-11 h-11 rounded-full bg-black/40 hover:bg-black/60 border border-amber-500/20 hover:border-amber-500/50 flex items-center justify-center text-amber-400 active:scale-90 transition-all shadow-lg hover:shadow-amber-900/20"
+          title="Maybe — save to Consider Later list"
+        >
+          <Bookmark className="w-5 h-5" />
+        </button>
+
+        <button
           onClick={() => triggerSwipe('right')}
           className="w-14 h-14 rounded-full bg-black/40 hover:bg-black/60 border border-green-500/20 hover:border-green-500/50 flex items-center justify-center text-green-400 active:scale-90 transition-all shadow-lg hover:shadow-green-900/20"
-          title="Save/Like"
+          title="Save"
         >
           <Heart className="w-6 h-6 fill-current" />
         </button>

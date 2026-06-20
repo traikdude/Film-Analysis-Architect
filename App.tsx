@@ -8,7 +8,7 @@ import { parseFilmAnalysis } from './services/parser';
 import { enrichMoviesWithPosters } from './services/tmdbService';
 import { ALL_WATCHLIST, WatchlistMovie } from './data/erikMovieData';
 import { YEARS, THEMES } from './constants';
-import { Popcorn, Clapperboard, Heart, Sparkles, Flame, Loader2, AlertTriangle, BookOpen } from 'lucide-react';
+import { Popcorn, Clapperboard, Heart, Sparkles, Flame, Loader2, AlertTriangle, BookOpen, Bookmark } from 'lucide-react';
 
 const App: React.FC = () => {
   const [state, setState] = useState<AppState>({
@@ -25,19 +25,20 @@ const App: React.FC = () => {
 
   const [parsedMovies, setParsedMovies] = useState<Movie[]>([]);
   const [likedMovies, setLikedMovies] = useState<Movie[]>([]);
-  const [activeView, setActiveView] = useState<'curate' | 'swipe' | 'library'>('curate');
+  const [maybeMovies, setMaybeMovies] = useState<Movie[]>([]);
+  const [activeView, setActiveView] = useState<'curate' | 'swipe' | 'library' | 'maybe'>('curate');
 
   const activeTheme = THEMES[state.themeId] || THEMES['joyful'];
 
-  // Load liked movies from localStorage on mount
+  // Load liked + maybe movies from localStorage on mount
   useEffect(() => {
     try {
       const saved = localStorage.getItem('liked_movies');
-      if (saved) {
-        setLikedMovies(JSON.parse(saved));
-      }
+      if (saved) setLikedMovies(JSON.parse(saved));
+      const savedMaybe = localStorage.getItem('maybe_movies');
+      if (savedMaybe) setMaybeMovies(JSON.parse(savedMaybe));
     } catch (e) {
-      console.error("Failed to load saved movies from localStorage", e);
+      console.error('Failed to load saved movies from localStorage', e);
     }
   }, []);
 
@@ -113,18 +114,31 @@ const App: React.FC = () => {
 
   const handleLike = (movie: Movie) => {
     setLikedMovies(prev => {
-      if (prev.some(m => m.title.toLowerCase() === movie.title.toLowerCase())) {
-        return prev;
-      }
+      if (prev.some(m => m.title.toLowerCase() === movie.title.toLowerCase())) return prev;
       const updated = [...prev, movie];
       localStorage.setItem('liked_movies', JSON.stringify(updated));
       return updated;
     });
   };
 
-  const handleDislike = (movie: Movie) => {
-    // Left swipe ignores the film
+  const handleMaybe = (movie: Movie) => {
+    setMaybeMovies(prev => {
+      if (prev.some(m => m.title.toLowerCase() === movie.title.toLowerCase())) return prev;
+      const updated = [...prev, movie];
+      localStorage.setItem('maybe_movies', JSON.stringify(updated));
+      return updated;
+    });
   };
+
+  const handleRemoveMaybe = (movie: Movie) => {
+    setMaybeMovies(prev => {
+      const updated = prev.filter(m => m.title.toLowerCase() !== movie.title.toLowerCase());
+      localStorage.setItem('maybe_movies', JSON.stringify(updated));
+      return updated;
+    });
+  };
+
+  const handleDislike = (_movie: Movie) => {};
 
   const handleRemoveLiked = (movie: Movie) => {
     setLikedMovies(prev => {
@@ -229,11 +243,12 @@ const App: React.FC = () => {
                 theme={activeTheme}
                 onLike={handleLike}
                 onDislike={handleDislike}
+                onMaybe={handleMaybe}
                 onComplete={() => setActiveView('library')}
               />
             )}
 
-            {/* 5. Library Shelf View */}
+            {/* 5. Saved Shelf View */}
             {activeView === 'library' && (
               <MovieLibrary 
                 likedMovies={likedMovies}
@@ -241,12 +256,59 @@ const App: React.FC = () => {
                 onRemove={handleRemoveLiked}
               />
             )}
+
+            {/* 6. Maybe / Consider Later View */}
+            {activeView === 'maybe' && (
+              <div className="flex flex-col h-full">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-2xl font-extrabold text-white flex items-center gap-2">
+                    <Bookmark className="w-6 h-6 text-amber-400" />
+                    Consider Later
+                  </h2>
+                  <span className="text-xs font-bold text-amber-400 bg-amber-400/10 border border-amber-400/20 px-3 py-1 rounded-full">
+                    {maybeMovies.length} Bookmarked
+                  </span>
+                </div>
+                {maybeMovies.length === 0 ? (
+                  <div className="flex-1 flex flex-col items-center justify-center text-center p-8 rounded-3xl border-2 border-dashed border-amber-500/20 bg-amber-950/10">
+                    <Bookmark className="w-12 h-12 text-amber-400/40 mb-4" />
+                    <p className="text-amber-200/50 font-medium">No maybes yet.</p>
+                    <p className="text-amber-200/30 text-sm mt-1">Tap the 🔖 bookmark on any card to save it here.</p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 gap-3 overflow-y-auto custom-scrollbar pb-4">
+                    {maybeMovies.map((movie) => (
+                      <div key={movie.title} className="relative rounded-2xl overflow-hidden border border-amber-500/20 bg-black/40 shadow-lg group">
+                        {movie.image ? (
+                          <img src={movie.image} alt={movie.title} className="w-full h-40 object-cover" />
+                        ) : (
+                          <img
+                            src={`/genre-art/${(movie.classification||'').toLowerCase().includes('horror')?'horror':(movie.classification||'').toLowerCase().includes('sci')?'scifi':(movie.classification||'').toLowerCase().includes('thriller')?'thriller':'default'}.png`}
+                            alt={movie.classification || 'Cinema'}
+                            className="w-full h-40 object-cover"
+                          />
+                        )}
+                        <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/95 via-black/60 to-transparent p-3">
+                          <p className="text-white font-bold text-xs leading-tight">{movie.title}</p>
+                          <p className="text-amber-300/70 text-[10px]">{movie.year}</p>
+                        </div>
+                        <button
+                          onClick={() => handleRemoveMaybe(movie)}
+                          className="absolute top-2 right-2 w-7 h-7 rounded-full bg-black/60 border border-white/10 flex items-center justify-center text-amber-400 opacity-0 group-hover:opacity-100 transition-opacity text-xs font-bold"
+                          title="Remove"
+                        >✕</button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </main>
       </div>
 
-      {/* Bottom Nav Bar (Mobile & Quick-toggle) */}
-      <nav className="bg-black/80 backdrop-blur-xl border-t border-white/10 py-3 px-6 flex justify-around items-center z-40">
+      {/* Bottom Nav Bar — 4 tabs */}
+      <nav className="bg-black/80 backdrop-blur-xl border-t border-white/10 py-3 px-4 flex justify-around items-center z-40">
         <button
           onClick={() => setActiveView('curate')}
           className={`flex flex-col items-center gap-1 transition-all ${
@@ -258,11 +320,7 @@ const App: React.FC = () => {
         </button>
 
         <button
-          onClick={() => {
-            if (status === 'completed' && parsedMovies.length > 0) {
-              setActiveView('swipe');
-            }
-          }}
+          onClick={() => { if (status === 'completed' && parsedMovies.length > 0) setActiveView('swipe'); }}
           disabled={status !== 'completed' || parsedMovies.length === 0}
           className={`flex flex-col items-center gap-1 transition-all ${
             status !== 'completed' || parsedMovies.length === 0 ? 'opacity-30 cursor-not-allowed text-slate-700' :
@@ -271,6 +329,21 @@ const App: React.FC = () => {
         >
           <Flame className="w-5 h-5 animate-pulse" />
           <span className="text-[10px] tracking-wide">Swipe Deck</span>
+        </button>
+
+        <button
+          onClick={() => setActiveView('maybe')}
+          className={`flex flex-col items-center gap-1 transition-all relative ${
+            activeView === 'maybe' ? 'text-amber-400 font-bold scale-105' : 'text-slate-500 hover:text-slate-300'
+          }`}
+        >
+          <Bookmark className="w-5 h-5" />
+          <span className="text-[10px] tracking-wide">Maybe</span>
+          {maybeMovies.length > 0 && (
+            <span className="absolute -top-1 -right-2 w-4 h-4 rounded-full bg-amber-500 text-[9px] font-black text-black flex items-center justify-center">
+              {maybeMovies.length}
+            </span>
+          )}
         </button>
 
         <button
