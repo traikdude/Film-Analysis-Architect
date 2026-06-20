@@ -58,9 +58,8 @@ const App: React.FC = () => {
         throw new Error("No films could be parsed from the AI curation response. This can happen if the AI model fails to output XML. Please try again.");
       }
       
-      // Enrich with real TMDB poster images (uses built-in key as fallback)
-      const tmdbKey = localStorage.getItem('tmdb_api_key') || '';
-      movies = await enrichMoviesWithPosters(movies, tmdbKey);
+      // Enrich with real posters (TMDB v4 Bearer → Wikipedia → Cinematic Art)
+      movies = await enrichMoviesWithPosters(movies);
       
       setParsedMovies(movies);
       setStatus('completed');
@@ -100,9 +99,8 @@ const App: React.FC = () => {
         technical_elements: '',
       }));
 
-      // Enrich with real TMDB posters
-      const tmdbKey = localStorage.getItem('tmdb_api_key') || '';
-      movies = await enrichMoviesWithPosters(movies, tmdbKey);
+      // Enrich with real posters (TMDB v4 Bearer → Wikipedia → Cinematic Art)
+      movies = await enrichMoviesWithPosters(movies);
 
       setParsedMovies(movies);
       setStatus('completed');

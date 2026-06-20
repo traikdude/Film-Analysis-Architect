@@ -16,14 +16,15 @@ interface ConfigurationPanelProps {
 export const ConfigurationPanel: React.FC<ConfigurationPanelProps> = ({ state, onUpdate, onGenerate, onLoadWatchlist, isGenerating, theme }) => {
   const [showSettings, setShowSettings] = useState(false);
   const [apiKey, setApiKey] = useState('');
-  const [tmdbKey, setTmdbKey] = useState('');
+  const [tmdbBearer, setTmdbBearer] = useState('');
   const [showKey, setShowKey] = useState(false);
 
   useEffect(() => {
     const savedKey = localStorage.getItem('user_gemini_api_key') || '';
-    const savedTmdb = localStorage.getItem('tmdb_api_key') || '';
+    // Load v4 bearer token (preferred) or fall back to old v3 key field
+    const savedBearer = localStorage.getItem('tmdb_bearer_token') || localStorage.getItem('tmdb_api_key') || '';
     setApiKey(savedKey);
-    setTmdbKey(savedTmdb);
+    setTmdbBearer(savedBearer);
   }, []);
 
   const handleSaveKey = () => {
@@ -32,10 +33,10 @@ export const ConfigurationPanel: React.FC<ConfigurationPanelProps> = ({ state, o
     } else {
       localStorage.removeItem('user_gemini_api_key');
     }
-    if (tmdbKey.trim()) {
-      localStorage.setItem('tmdb_api_key', tmdbKey.trim());
+    if (tmdbBearer.trim()) {
+      localStorage.setItem('tmdb_bearer_token', tmdbBearer.trim());
     } else {
-      localStorage.removeItem('tmdb_api_key');
+      localStorage.removeItem('tmdb_bearer_token');
     }
     setShowSettings(false);
   };
@@ -106,7 +107,7 @@ export const ConfigurationPanel: React.FC<ConfigurationPanelProps> = ({ state, o
             </div>
             
             <p className="text-xs text-slate-300 mb-4 leading-relaxed">
-              Configure your personal Gemini API key here. It will be saved securely in your browser's local storage and used directly for requests. 🔒
+              Keys are saved in your browser only — never sent to any server. 🔒
             </p>
 
             <div className="space-y-4">
@@ -134,23 +135,28 @@ export const ConfigurationPanel: React.FC<ConfigurationPanelProps> = ({ state, o
 
               <div>
                 <label className="block text-[10px] uppercase font-bold text-slate-400 mb-1.5 ml-1">
-                  TMDB API Key <span className="text-indigo-400 normal-case">(for real movie posters)</span>
+                  TMDB Bearer Token <span className="text-emerald-400 normal-case font-semibold">✦ v4 — real movie posters</span>
                 </label>
-                <input
-                  type="password"
-                  value={tmdbKey}
-                  onChange={(e) => setTmdbKey(e.target.value)}
-                  placeholder="Get free key at themoviedb.org/settings/api"
-                  className="w-full bg-black/45 border border-white/15 text-white text-sm rounded-xl py-2.5 pl-3 pr-3 focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all outline-none font-mono"
+                <textarea
+                  rows={3}
+                  value={tmdbBearer}
+                  onChange={(e) => setTmdbBearer(e.target.value)}
+                  placeholder="Paste your API Read Access Token (eyJ...) from themoviedb.org → Settings → API"
+                  className="w-full bg-black/45 border border-white/15 text-white text-xs rounded-xl py-2.5 pl-3 pr-3 focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all outline-none font-mono resize-none leading-relaxed"
                 />
-                <a
-                  href="https://www.themoviedb.org/settings/api"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-[10px] text-indigo-400 hover:underline mt-1 block"
-                >
-                  → Get your free TMDB API key here
-                </a>
+                <div className="flex items-center justify-between mt-1">
+                  <a
+                    href="https://www.themoviedb.org/settings/api"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-[10px] text-emerald-400 hover:underline"
+                  >
+                    → themoviedb.org → Settings → API → copy the long eyJ... token
+                  </a>
+                  {tmdbBearer.startsWith('eyJ') && (
+                    <span className="text-[10px] text-emerald-400 font-bold">✅ Token looks valid</span>
+                  )}
+                </div>
               </div>
             </div>
 

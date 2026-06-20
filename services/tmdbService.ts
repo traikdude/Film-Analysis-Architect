@@ -2,17 +2,41 @@ const TMDB_BASE = 'https://api.themoviedb.org/3';
 const TMDB_IMAGE_BASE = 'https://image.tmdb.org/t/p/w780';
 const WIKI_API = 'https://en.wikipedia.org/api/rest_v1/page/summary';
 
-// Key chain: localStorage key → VITE env var → hardcoded fallback
-const DEFAULT_TMDB_KEY = import.meta.env.VITE_TMDB_API_KEY || 'd6fe5f56f5f9bd2d72dcd5ff3a4a46bd';
+// v4 Bearer token (preferred) — read at call time so Settings panel saves take effect immediately
+const getBearerToken = (): string =>
+  localStorage.getItem('tmdb_bearer_token') ||
+  import.meta.env.VITE_TMDB_BEARER_TOKEN ||
+  '';
 
-// ─── Source 1: TMDB ───────────────────────────────────────────────────────────
-const fetchFromTMDB = async (title: string, year: string, userKey?: string): Promise<string> => {
-  const key = userKey || DEFAULT_TMDB_KEY;
-  if (!key || !title) return '';
+// v3 API key fallback (legacy — used only if no bearer token found)
+const getApiKey = (): string =>
+  localStorage.getItem('tmdb_api_key') ||
+  import.meta.env.VITE_TMDB_API_KEY ||
+  'd6fe5f56f5f9bd2d72dcd5ff3a4a46bd';
+
+// ─── Source 1: TMDB (v4 Bearer OR v3 API key) ────────────────────────────────
+const fetchFromTMDB = async (title: string, year: string): Promise<string> => {
+  if (!title) return '';
   try {
+    const bearer = getBearerToken();
     const yearParam = year ? `&year=${year}` : '';
-    const url = `${TMDB_BASE}/search/movie?api_key=${key}&query=${encodeURIComponent(title)}${yearParam}&language=en-US&page=1`;
-    const res = await fetch(url);
+
+    let url: string;
+    let headers: Record<string, string> = { 'Content-Type': 'application/json' };
+
+    if (bearer) {
+      // ✅ v4 OAuth — Bearer token in Authorization header (no key in URL)
+      url = `${TMDB_BASE}/search/movie?query=${encodeURIComponent(title)}${yearParam}&language=en-US&page=1`;
+      headers['Authorization'] = `Bearer ${bearer}`;
+      console.log(`🔑 TMDB v4 Bearer fetch for "${title}"`);
+    } else {
+      // ⚠️ v3 fallback — API key in URL param
+      const key = getApiKey();
+      url = `${TMDB_BASE}/search/movie?api_key=${key}&query=${encodeURIComponent(title)}${yearParam}&language=en-US&page=1`;
+      console.log(`🔑 TMDB v3 key fetch for "${title}"`);
+    }
+
+    const res = await fetch(url, { headers });
     if (!res.ok) {
       console.warn(`TMDB ${res.status} for "${title}"`);
       return '';
@@ -20,10 +44,11 @@ const fetchFromTMDB = async (title: string, year: string, userKey?: string): Pro
     const data = await res.json();
     const movie = data.results?.[0];
     if (movie?.poster_path) {
-      const url = `${TMDB_IMAGE_BASE}${movie.poster_path}`;
-      console.log(`✅ TMDB poster: "${title}" → ${url}`);
-      return url;
+      const posterUrl = `${TMDB_IMAGE_BASE}${movie.poster_path}`;
+      console.log(`✅ TMDB poster: "${title}" → ${posterUrl}`);
+      return posterUrl;
     }
+    console.warn(`TMDB: no poster_path for "${title}"`);
   } catch (e) {
     console.warn(`TMDB lookup failed for "${title}":`, e);
   }
@@ -65,31 +90,31 @@ const fetchFromWikipedia = async (title: string, year: string): Promise<string> 
 };
 
 // ─── Public API ───────────────────────────────────────────────────────────────
-export const fetchMoviePoster = async (title: string, year: string, userKey?: string): Promise<string> => {
+export const fetchMoviePoster = async (title: string, year: string): Promise<string> => {
   if (!title) return '';
 
-  // 1. Try TMDB first (highest quality, official posters)
-  const tmdbUrl = await fetchFromTMDB(title, year, userKey);
+  // 1. Try TMDB (v4 Bearer → v3 key → skip if neither available)
+  const tmdbUrl = await fetchFromTMDB(title, year);
   if (tmdbUrl) return tmdbUrl;
 
-  // 2. Fall back to Wikipedia (no auth, works everywhere)
+  // 2. Wikipedia fallback (zero auth, works everywhere)
   const wikiUrl = await fetchFromWikipedia(title, year);
   if (wikiUrl) return wikiUrl;
 
-  // 3. Give up — SwipeDeck will render the cinematic art fallback
+  // 3. Give up — SwipeDeck renders genre-keyed cinematic art
   return '';
 };
 
-export const enrichMoviesWithPosters = async (movies: any[], userKey?: string): Promise<any[]> => {
-  console.log(`🎬 Enriching ${movies.length} movies (TMDB → Wikipedia → Cinematic Art)...`);
+export const enrichMoviesWithPosters = async (movies: any[]): Promise<any[]> => {
+  console.log(`🎬 Enriching ${movies.length} movies (TMDB v4 → Wikipedia → Cinematic Art)...`);
   const enriched = await Promise.all(
     movies.map(async (movie) => {
-      if (movie.image?.startsWith('http')) return movie; // already has real image
-      const poster = await fetchMoviePoster(movie.title, movie.year, userKey);
+      if (movie.image?.startsWith('http')) return movie;
+      const poster = await fetchMoviePoster(movie.title, movie.year);
       return poster ? { ...movie, image: poster } : movie;
     })
   );
   const withPosters = enriched.filter(m => m.image?.startsWith('http')).length;
-  console.log(`🎬 Enrichment done: ${withPosters}/${movies.length} movies got real posters.`);
+  console.log(`🎬 Done: ${withPosters}/${movies.length} movies got real posters.`);
   return enriched;
 };
