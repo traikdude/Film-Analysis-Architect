@@ -36,3 +36,22 @@ export interface AppState {
 }
 
 export type AnalysisStatus = 'idle' | 'generating' | 'completed' | 'error';
+
+export interface Movie {
+  rank: string;
+  title: string;
+  year: string;
+  director: string;
+  classification: string;
+  runtime: string;
+  image: string;
+  trailer: string;
+  criticalOverview: string;
+  synopsis: string;
+  artisticMerit: string;
+  genreAnalysis: string;
+  culturalImpact: string;
+  keyThemes: string[];
+  technicalElements: string[];
+}
+

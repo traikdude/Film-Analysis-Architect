@@ -1,8 +1,8 @@
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { AppState, GenreCategory, Theme } from '../types';
 import { GENRE_DATA, YEARS, THEMES } from '../constants';
-import { ChevronDown, Check, Clapperboard, Calendar, Sparkles, Palette } from 'lucide-react';
+import { ChevronDown, Check, Clapperboard, Calendar, Sparkles, Palette, Settings, Key, X, Eye, EyeOff } from 'lucide-react';
 
 interface ConfigurationPanelProps {
   state: AppState;
@@ -13,7 +13,32 @@ interface ConfigurationPanelProps {
 }
 
 export const ConfigurationPanel: React.FC<ConfigurationPanelProps> = ({ state, onUpdate, onGenerate, isGenerating, theme }) => {
-  
+  const [showSettings, setShowSettings] = useState(false);
+  const [apiKey, setApiKey] = useState('');
+  const [tmdbKey, setTmdbKey] = useState('');
+  const [showKey, setShowKey] = useState(false);
+
+  useEffect(() => {
+    const savedKey = localStorage.getItem('user_gemini_api_key') || '';
+    const savedTmdb = localStorage.getItem('tmdb_api_key') || '';
+    setApiKey(savedKey);
+    setTmdbKey(savedTmdb);
+  }, []);
+
+  const handleSaveKey = () => {
+    if (apiKey.trim()) {
+      localStorage.setItem('user_gemini_api_key', apiKey.trim());
+    } else {
+      localStorage.removeItem('user_gemini_api_key');
+    }
+    if (tmdbKey.trim()) {
+      localStorage.setItem('tmdb_api_key', tmdbKey.trim());
+    } else {
+      localStorage.removeItem('tmdb_api_key');
+    }
+    setShowSettings(false);
+  };
+
   const toggleGenre = (genreId: string) => {
     const newSelected = { ...state.selectedGenres };
     if (newSelected[genreId]) {
@@ -46,13 +71,109 @@ export const ConfigurationPanel: React.FC<ConfigurationPanelProps> = ({ state, o
 
   return (
     <div className="flex flex-col h-full bg-black/20 backdrop-blur-md border-r border-white/10">
-      <div className={`p-6 border-b border-white/10 bg-gradient-to-r ${theme.bgGradient}`}>
-        <h1 className={`text-2xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r ${theme.textGradient} flex items-center gap-3 drop-shadow-sm`}>
-          <span className="text-3xl">🎬</span>
-          Film Architect
-        </h1>
-        <p className={`text-xs text-${theme.primary}-200/70 mt-2 font-medium tracking-wide`}>✨ AI-Powered Cinematic Curation</p>
+      <div className={`p-6 border-b border-white/10 bg-gradient-to-r ${theme.bgGradient} flex items-center justify-between`}>
+        <div>
+          <h1 className={`text-2xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r ${theme.textGradient} flex items-center gap-3 drop-shadow-sm`}>
+            <span className="text-3xl">🎬</span>
+            Film Architect
+          </h1>
+          <p className={`text-xs text-${theme.primary}-200/70 mt-2 font-medium tracking-wide`}>✨ AI-Powered Cinematic Curation</p>
+        </div>
+        <button
+          onClick={() => setShowSettings(true)}
+          className="p-2.5 rounded-xl bg-white/5 border border-white/10 text-white hover:bg-white/10 transition-colors shadow-md hover:scale-105 active:scale-95 duration-200"
+          title="Configure API Key"
+        >
+          <Settings className="w-5 h-5" />
+        </button>
       </div>
+
+      {showSettings && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md">
+          <div className="bg-[#1e1b4b]/95 border border-white/15 rounded-3xl p-6 w-full max-w-md shadow-2xl animate-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                <Key className={`w-5 h-5 text-${theme.primary}-400`} />
+                🔑 API Configuration
+              </h3>
+              <button
+                onClick={() => setShowSettings(false)}
+                className="p-1.5 rounded-full hover:bg-white/10 text-slate-400 hover:text-white transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <p className="text-xs text-slate-300 mb-4 leading-relaxed">
+              Configure your personal Gemini API key here. It will be saved securely in your browser's local storage and used directly for requests. 🔒
+            </p>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-[10px] uppercase font-bold text-slate-400 mb-1.5 ml-1">
+                  Gemini API Key
+                </label>
+                <div className="relative flex items-center">
+                  <input
+                    type={showKey ? 'text' : 'password'}
+                    value={apiKey}
+                    onChange={(e) => setApiKey(e.target.value)}
+                    placeholder="AIzaSy..."
+                    className="w-full bg-black/45 border border-white/15 text-white text-sm rounded-xl py-2.5 pl-3 pr-10 focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all outline-none font-mono"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowKey(!showKey)}
+                    className="absolute right-3 text-slate-400 hover:text-white transition-colors"
+                  >
+                    {showKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[10px] uppercase font-bold text-slate-400 mb-1.5 ml-1">
+                  TMDB API Key <span className="text-indigo-400 normal-case">(for real movie posters)</span>
+                </label>
+                <input
+                  type="password"
+                  value={tmdbKey}
+                  onChange={(e) => setTmdbKey(e.target.value)}
+                  placeholder="Get free key at themoviedb.org/settings/api"
+                  className="w-full bg-black/45 border border-white/15 text-white text-sm rounded-xl py-2.5 pl-3 pr-3 focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all outline-none font-mono"
+                />
+                <a
+                  href="https://www.themoviedb.org/settings/api"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-[10px] text-indigo-400 hover:underline mt-1 block"
+                >
+                  → Get your free TMDB API key here
+                </a>
+              </div>
+            </div>
+
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={() => {
+                  setApiKey('');
+                  localStorage.removeItem('user_gemini_api_key');
+                  setShowSettings(false);
+                }}
+                className="flex-1 py-2.5 rounded-xl border border-white/10 text-xs font-semibold text-slate-300 hover:bg-white/5 transition-colors"
+              >
+                🗑️ Clear Key
+              </button>
+              <button
+                onClick={handleSaveKey}
+                className={`flex-1 py-2.5 rounded-xl bg-gradient-to-r ${theme.buttonGradient} text-xs font-bold text-white hover:brightness-110 active:scale-[0.98] transition-all`}
+              >
+                💾 Save Key
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="flex-1 overflow-y-auto custom-scrollbar p-6 space-y-8">
         

@@ -1,0 +1,15 @@
+{
+  "projects": {
+    "default": "qklipto"
+  },
+  "targets": {
+    "qklipto": {
+      "hosting": {
+        "film-architect-curator": [
+          "film-architect-curator"
+        ]
+      }
+    }
+  },
+  "etags": {}
+}
