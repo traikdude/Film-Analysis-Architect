@@ -2,13 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { ConfigurationPanel } from './components/ConfigurationPanel';
 import { SwipeDeck } from './components/SwipeDeck';
 import { MovieLibrary } from './components/MovieLibrary';
-import { AppState, AnalysisStatus, Movie } from './types';
+import { AppState, AnalysisStatus, Movie, CurationSession } from './types';
 import { generateFilmAnalysis } from './services/geminiService';
 import { parseFilmAnalysis } from './services/parser';
 import { enrichMoviesWithPosters } from './services/tmdbService';
+import { saveToHistory, loadHistory, deleteFromHistory, downloadSessionMarkdown, copySessionToClipboard } from './services/exportService';
 import { ALL_WATCHLIST, WatchlistMovie } from './data/erikMovieData';
 import { YEARS, THEMES } from './constants';
-import { Popcorn, Clapperboard, Heart, Sparkles, Flame, Loader2, AlertTriangle, BookOpen, Bookmark, Eye } from 'lucide-react';
+import { Popcorn, Clapperboard, Heart, Sparkles, Flame, Loader2, AlertTriangle, BookOpen, Bookmark, Eye, History, Download, Copy, Trash2, Play } from 'lucide-react';
 
 const App: React.FC = () => {
   const [state, setState] = useState<AppState>({
@@ -27,11 +28,13 @@ const App: React.FC = () => {
   const [likedMovies, setLikedMovies] = useState<Movie[]>([]);
   const [maybeMovies, setMaybeMovies] = useState<Movie[]>([]);
   const [seenMovies, setSeenMovies] = useState<Movie[]>([]);
-  const [activeView, setActiveView] = useState<'curate' | 'swipe' | 'library' | 'maybe' | 'seen'>('curate');
+  const [curationHistory, setCurationHistory] = useState<CurationSession[]>([]);
+  const [copiedSessionId, setCopiedSessionId] = useState<string | null>(null);
+  const [activeView, setActiveView] = useState<'curate' | 'swipe' | 'library' | 'maybe' | 'seen' | 'history'>('curate');
 
   const activeTheme = THEMES[state.themeId] || THEMES['joyful'];
 
-  // Load liked + maybe + seen movies from localStorage on mount
+  // Load liked + maybe + seen movies + curation history from localStorage on mount
   useEffect(() => {
     try {
       const saved = localStorage.getItem('liked_movies');
@@ -40,6 +43,7 @@ const App: React.FC = () => {
       if (savedMaybe) setMaybeMovies(JSON.parse(savedMaybe));
       const savedSeen = localStorage.getItem('seen_movies');
       if (savedSeen) setSeenMovies(JSON.parse(savedSeen));
+      setCurationHistory(loadHistory());
     } catch (e) {
       console.error('Failed to load saved movies from localStorage', e);
     }
@@ -65,6 +69,23 @@ const App: React.FC = () => {
       // Enrich with real posters (TMDB v4 Bearer → Wikipedia → Cinematic Art)
       movies = await enrichMoviesWithPosters(movies);
       
+      // ── Save to curation history ─────────────────────────────────────
+      const genreNames = Object.keys(state.selectedGenres).map(id =>
+        id.charAt(0).toUpperCase() + id.slice(1)
+      );
+      const session: CurationSession = {
+        id: crypto.randomUUID(),
+        createdAt: new Date().toISOString(),
+        label: `${genreNames.join(' · ')} · ${state.startYear}–${state.endYear}`,
+        genres: genreNames,
+        yearRange: `${state.startYear} – ${state.endYear}`,
+        movieCount: movies.length,
+        movies,
+      };
+      saveToHistory(session);
+      setCurationHistory(loadHistory());
+      // ────────────────────────────────────────────────────────────────
+
       setParsedMovies(movies);
       setStatus('completed');
       setActiveView('swipe');
@@ -106,12 +127,52 @@ const App: React.FC = () => {
       // Enrich with real posters (TMDB v4 Bearer → Wikipedia → Cinematic Art)
       movies = await enrichMoviesWithPosters(movies);
 
+      // ── Save to curation history ─────────────────────────────────────
+      const session: CurationSession = {
+        id: crypto.randomUUID(),
+        createdAt: new Date().toISOString(),
+        label: `My Watchlist (Random 20) · ${state.startYear}–${state.endYear}`,
+        genres: ['My Watchlist'],
+        yearRange: 'Various',
+        movieCount: movies.length,
+        movies,
+      };
+      saveToHistory(session);
+      setCurationHistory(loadHistory());
+      // ────────────────────────────────────────────────────────────────
+
       setParsedMovies(movies);
       setStatus('completed');
       setActiveView('swipe');
     } catch (e: any) {
       setError(e.message || "Failed to load watchlist.");
       setStatus('error');
+    }
+  };
+
+  /** Load a past session back into the swipe deck (no API call) */
+  const handleLoadSession = (session: CurationSession) => {
+    setParsedMovies(session.movies);
+    setStatus('completed');
+    setActiveView('swipe');
+  };
+
+  /** Delete a session from history */
+  const handleDeleteSession = (id: string) => {
+    const updated = deleteFromHistory(id);
+    setCurationHistory(updated);
+  };
+
+  /** Download or copy a session */
+  const handleExportSession = (session: CurationSession) => {
+    downloadSessionMarkdown(session);
+  };
+
+  const handleCopySession = async (session: CurationSession) => {
+    const ok = await copySessionToClipboard(session);
+    if (ok) {
+      setCopiedSessionId(session.id);
+      setTimeout(() => setCopiedSessionId(null), 2000);
     }
   };
 
@@ -375,44 +436,145 @@ const App: React.FC = () => {
                 )}
               </div>
             )}
+
+            {/* 8. Curation History View */}
+            {activeView === 'history' && (
+              <div className="flex flex-col h-full">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-2xl font-extrabold text-white flex items-center gap-2">
+                    <History className="w-6 h-6 text-violet-400" />
+                    Curation History
+                  </h2>
+                  <span className="text-xs font-bold text-violet-400 bg-violet-400/10 border border-violet-400/20 px-3 py-1 rounded-full">
+                    {curationHistory.length} Sessions
+                  </span>
+                </div>
+
+                {curationHistory.length === 0 ? (
+                  <div className="flex-1 flex flex-col items-center justify-center text-center p-8 rounded-3xl border-2 border-dashed border-violet-500/20 bg-violet-950/10">
+                    <History className="w-12 h-12 text-violet-400/40 mb-4" />
+                    <p className="text-violet-200/50 font-medium">No sessions yet.</p>
+                    <p className="text-violet-200/30 text-sm mt-1">Generate or load a watchlist to start building your history.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3 overflow-y-auto custom-scrollbar pb-4">
+                    {curationHistory.map((session) => {
+                      const d = new Date(session.createdAt);
+                      const dateStr = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+                      const timeStr = `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+                      return (
+                        <div key={session.id} className="rounded-2xl border border-violet-500/20 bg-black/40 p-4 shadow-lg group">
+                          {/* Header row */}
+                          <div className="flex items-start justify-between gap-2 mb-3">
+                            <div className="flex-1 min-w-0">
+                              <p className="text-white font-bold text-sm leading-tight truncate">{session.label}</p>
+                              <p className="text-violet-300/60 text-[10px] mt-0.5">{dateStr} at {timeStr} · {session.movieCount} films</p>
+                            </div>
+                            <button
+                              onClick={() => handleDeleteSession(session.id)}
+                              className="w-7 h-7 rounded-full bg-black/40 border border-white/10 flex items-center justify-center text-slate-500 hover:text-red-400 hover:border-red-500/30 transition-colors flex-shrink-0"
+                              title="Delete session"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </button>
+                          </div>
+
+                          {/* Genre chips */}
+                          <div className="flex flex-wrap gap-1 mb-3">
+                            {session.genres.map(g => (
+                              <span key={g} className="text-[9px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full bg-violet-500/15 text-violet-300 border border-violet-500/20">
+                                {g}
+                              </span>
+                            ))}
+                            <span className="text-[9px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full bg-white/5 text-slate-400 border border-white/10">
+                              {session.yearRange}
+                            </span>
+                          </div>
+
+                          {/* Action buttons */}
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => handleLoadSession(session)}
+                              className="flex-1 py-2 rounded-xl bg-violet-600/20 hover:bg-violet-600/35 border border-violet-500/30 hover:border-violet-500/50 text-violet-200 text-xs font-bold flex items-center justify-center gap-1.5 transition-all active:scale-95"
+                            >
+                              <Play className="w-3 h-3" />
+                              Load into Swipe Deck
+                            </button>
+                            <button
+                              onClick={() => handleExportSession(session)}
+                              className="py-2 px-3 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 text-slate-300 text-xs font-bold flex items-center gap-1.5 transition-all active:scale-95"
+                              title="Download as Markdown (NotebookLM ready)"
+                            >
+                              <Download className="w-3 h-3" />
+                              .md
+                            </button>
+                            <button
+                              onClick={() => handleCopySession(session)}
+                              className={`py-2 px-3 rounded-xl border text-xs font-bold flex items-center gap-1.5 transition-all active:scale-95 ${
+                                copiedSessionId === session.id
+                                  ? 'bg-green-500/20 border-green-500/40 text-green-300'
+                                  : 'bg-white/5 hover:bg-white/10 border-white/10 hover:border-white/20 text-slate-300'
+                              }`}
+                              title="Copy to clipboard"
+                            >
+                              <Copy className="w-3 h-3" />
+                              {copiedSessionId === session.id ? '✓' : 'Copy'}
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {/* NotebookLM tip */}
+                {curationHistory.length > 0 && (
+                  <div className="mt-3 p-3 rounded-xl border border-violet-500/10 bg-violet-950/20">
+                    <p className="text-[10px] text-violet-300/60 leading-relaxed">
+                      💡 <strong className="text-violet-300/80">NotebookLM tip:</strong> Download any session as <code className="font-mono">.md</code>, then upload to <a href="https://notebooklm.google.com" target="_blank" rel="noopener noreferrer" className="underline hover:text-violet-200">notebooklm.google.com</a> → your Movies notebook as a source.
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </main>
       </div>
 
-      {/* Bottom Nav Bar — 5 tabs */}
-      <nav className="bg-black/80 backdrop-blur-xl border-t border-white/10 py-2 px-2 flex justify-around items-center z-40">
+      {/* Bottom Nav Bar — 6 tabs */}
+      <nav className="bg-black/80 backdrop-blur-xl border-t border-white/10 py-2 px-1 flex justify-around items-center z-40">
         <button
           onClick={() => setActiveView('curate')}
-          className={`flex flex-col items-center gap-0.5 px-2 transition-all ${
+          className={`flex flex-col items-center gap-0.5 px-1.5 transition-all ${
             activeView === 'curate' ? `text-${activeTheme.primary}-400 font-bold scale-105` : 'text-slate-500 hover:text-slate-300'
           }`}
         >
           <Clapperboard className="w-5 h-5" />
-          <span className="text-[9px] tracking-wide">Curate</span>
+          <span className="text-[8px] tracking-wide">Curate</span>
         </button>
 
         <button
           onClick={() => { if (status === 'completed' && parsedMovies.length > 0) setActiveView('swipe'); }}
           disabled={status !== 'completed' || parsedMovies.length === 0}
-          className={`flex flex-col items-center gap-0.5 px-2 transition-all ${
+          className={`flex flex-col items-center gap-0.5 px-1.5 transition-all ${
             status !== 'completed' || parsedMovies.length === 0 ? 'opacity-30 cursor-not-allowed text-slate-700' :
             activeView === 'swipe' ? `text-${activeTheme.primary}-400 font-bold scale-105` : 'text-slate-500 hover:text-slate-300'
           }`}
         >
           <Flame className="w-5 h-5 animate-pulse" />
-          <span className="text-[9px] tracking-wide">Swipe</span>
+          <span className="text-[8px] tracking-wide">Swipe</span>
         </button>
 
         <button
           onClick={() => setActiveView('maybe')}
-          className={`flex flex-col items-center gap-0.5 px-2 transition-all relative ${
+          className={`flex flex-col items-center gap-0.5 px-1.5 transition-all relative ${
             activeView === 'maybe' ? 'text-amber-400 font-bold scale-105' : 'text-slate-500 hover:text-slate-300'
           }`}
         >
           <Bookmark className="w-5 h-5" />
-          <span className="text-[9px] tracking-wide">Maybe</span>
+          <span className="text-[8px] tracking-wide">Maybe</span>
           {maybeMovies.length > 0 && (
-            <span className="absolute -top-1 -right-0 w-4 h-4 rounded-full bg-amber-500 text-[8px] font-black text-black flex items-center justify-center">
+            <span className="absolute -top-1 -right-0 w-4 h-4 rounded-full bg-amber-500 text-[7px] font-black text-black flex items-center justify-center">
               {maybeMovies.length}
             </span>
           )}
@@ -420,27 +582,42 @@ const App: React.FC = () => {
 
         <button
           onClick={() => setActiveView('seen')}
-          className={`flex flex-col items-center gap-0.5 px-2 transition-all relative ${
+          className={`flex flex-col items-center gap-0.5 px-1.5 transition-all relative ${
             activeView === 'seen' ? 'text-sky-400 font-bold scale-105' : 'text-slate-500 hover:text-slate-300'
           }`}
         >
           <Eye className="w-5 h-5" />
-          <span className="text-[9px] tracking-wide">Seen</span>
+          <span className="text-[8px] tracking-wide">Seen</span>
           {seenMovies.length > 0 && (
-            <span className="absolute -top-1 -right-0 w-4 h-4 rounded-full bg-sky-500 text-[8px] font-black text-black flex items-center justify-center">
+            <span className="absolute -top-1 -right-0 w-4 h-4 rounded-full bg-sky-500 text-[7px] font-black text-black flex items-center justify-center">
               {seenMovies.length}
             </span>
           )}
         </button>
 
         <button
+          onClick={() => setActiveView('history')}
+          className={`flex flex-col items-center gap-0.5 px-1.5 transition-all relative ${
+            activeView === 'history' ? 'text-violet-400 font-bold scale-105' : 'text-slate-500 hover:text-slate-300'
+          }`}
+        >
+          <History className="w-5 h-5" />
+          <span className="text-[8px] tracking-wide">History</span>
+          {curationHistory.length > 0 && (
+            <span className="absolute -top-1 -right-0 w-4 h-4 rounded-full bg-violet-500 text-[7px] font-black text-black flex items-center justify-center">
+              {curationHistory.length}
+            </span>
+          )}
+        </button>
+
+        <button
           onClick={() => setActiveView('library')}
-          className={`flex flex-col items-center gap-0.5 px-2 transition-all ${
+          className={`flex flex-col items-center gap-0.5 px-1.5 transition-all ${
             activeView === 'library' ? `text-${activeTheme.primary}-400 font-bold scale-105` : 'text-slate-500 hover:text-slate-300'
           }`}
         >
           <Heart className="w-5 h-5 fill-current" />
-          <span className="text-[9px] tracking-wide">Saved</span>
+          <span className="text-[8px] tracking-wide">Saved</span>
         </button>
       </nav>
     </div>

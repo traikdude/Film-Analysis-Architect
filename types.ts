@@ -55,3 +55,12 @@ export interface Movie {
   technicalElements: string[];
 }
 
+export interface CurationSession {
+  id: string;            // crypto UUID
+  createdAt: string;     // ISO 8601 timestamp
+  label: string;         // e.g. "Horror · Sci-Fi · 2018–2025"
+  genres: string[];      // human-readable genre names
+  yearRange: string;     // e.g. "2018 – 2025"
+  movieCount: number;
+  movies: Movie[];
+}
