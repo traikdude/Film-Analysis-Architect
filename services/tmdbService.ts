@@ -1,8 +1,9 @@
 const TMDB_BASE = 'https://api.themoviedb.org/3';
-const TMDB_IMAGE_BASE = 'https://image.tmdb.org/t/p/w500';
+const TMDB_IMAGE_BASE = 'https://image.tmdb.org/t/p/w780';
 
-// Built-in key baked at build time — always available as fallback
-const DEFAULT_TMDB_KEY = import.meta.env.VITE_TMDB_API_KEY || '';
+// Key chain: localStorage key (user-entered) → env var baked at build time → hardcoded fallback
+// TMDB v3 API keys are designed for client-side browser use (CORS allowed by TMDB)
+const DEFAULT_TMDB_KEY = import.meta.env.VITE_TMDB_API_KEY || 'd6fe5f56f5f9bd2d72dcd5ff3a4a46bd';
 
 export const fetchMoviePoster = async (title: string, year: string, userKey?: string): Promise<string> => {
   const key = userKey || DEFAULT_TMDB_KEY;

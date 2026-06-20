@@ -252,10 +252,88 @@ export const SwipeDeck: React.FC<SwipeDeckProps> = ({ movies, theme, onLike, onD
                   }}
                 />
               ) : null}
-              <div className={`w-full h-full bg-gradient-to-br ${theme.bgGradient} flex-col items-center justify-center p-6 text-center`}
-                style={{ display: activeMovie.image ? 'none' : 'flex' }}>
-                <Flame className={`w-16 h-16 text-${theme.primary}-400 mb-4 animate-pulse`} />
-                <span className="text-xs uppercase font-extrabold tracking-widest text-white/40">Cinematic Curation</span>
+
+              {/* ─── Cinematic Fallback Poster Art ─────────────────────────── */}
+              <div
+                className="w-full h-full flex-col items-center justify-center relative overflow-hidden"
+                style={{ display: activeMovie.image ? 'none' : 'flex' }}
+              >
+                {/* Film grain texture overlay */}
+                <div className="absolute inset-0 opacity-[0.07]" style={{
+                  backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E")`,
+                  backgroundRepeat: 'repeat'
+                }} />
+
+                {/* Genre-keyed gradient background */}
+                {(() => {
+                  const genre = (activeMovie.classification || activeMovie.genre_analysis || '').toLowerCase();
+                  let grad = 'from-[#0a0a1a] via-[#0d1128] to-[#070714]'; // default deep blue-black
+                  let accentColor = '#6366f1';
+                  let accentColorDim = '#312e81';
+                  if (genre.includes('horror') || genre.includes('supernatural')) {
+                    grad = 'from-[#1a0005] via-[#0d0008] to-[#000005]';
+                    accentColor = '#dc2626'; accentColorDim = '#450a0a';
+                  } else if (genre.includes('thriller') || genre.includes('noir')) {
+                    grad = 'from-[#0a0a0a] via-[#111115] to-[#05050f]';
+                    accentColor = '#94a3b8'; accentColorDim = '#1e293b';
+                  } else if (genre.includes('sci-fi') || genre.includes('science fiction')) {
+                    grad = 'from-[#020c1b] via-[#061428] to-[#010a18]';
+                    accentColor = '#38bdf8'; accentColorDim = '#0c4a6e';
+                  } else if (genre.includes('comedy') || genre.includes('dark comedy')) {
+                    grad = 'from-[#1a0e00] via-[#120900] to-[#080400]';
+                    accentColor = '#f59e0b'; accentColorDim = '#451a03';
+                  }
+                  return (
+                    <>
+                      <div className={`absolute inset-0 bg-gradient-to-b ${grad}`} />
+                      {/* Cinematic vignette */}
+                      <div className="absolute inset-0" style={{
+                        background: 'radial-gradient(ellipse at center, transparent 30%, rgba(0,0,0,0.75) 100%)'
+                      }} />
+                      {/* Atmospheric glow orb */}
+                      <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-48 h-48 rounded-full blur-3xl opacity-20"
+                        style={{ background: accentColor }} />
+                      {/* Horizontal scan lines */}
+                      <div className="absolute inset-0 opacity-[0.025]" style={{
+                        backgroundImage: 'repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(255,255,255,1) 2px, rgba(255,255,255,1) 3px)',
+                        backgroundSize: '100% 4px'
+                      }} />
+                      {/* Corner accent lines — cinematic frame */}
+                      {[['top-5 left-5','top-5 left-5'],['top-5 right-5','top-5 right-5'],['bottom-5 left-5','bottom-5 left-5'],['bottom-5 right-5','bottom-5 right-5']].map((_,i) => (
+                        <div key={i} className={`absolute ${i===0?'top-5 left-5':i===1?'top-5 right-5':i===2?'bottom-5 left-5':'bottom-5 right-5'} w-8 h-8 opacity-40`}
+                          style={{
+                            borderTop: i < 2 ? `2px solid ${accentColor}` : 'none',
+                            borderBottom: i >= 2 ? `2px solid ${accentColor}` : 'none',
+                            borderLeft: i % 2 === 0 ? `2px solid ${accentColor}` : 'none',
+                            borderRight: i % 2 === 1 ? `2px solid ${accentColor}` : 'none',
+                          }}
+                        />
+                      ))}
+                      {/* Central title composition */}
+                      <div className="relative z-10 flex flex-col items-center justify-center text-center px-8 gap-4">
+                        {/* Genre pill */}
+                        <span className="text-[9px] font-black tracking-[0.3em] uppercase px-3 py-1 rounded-full border opacity-70"
+                          style={{ borderColor: accentColor, color: accentColor }}>
+                          {(activeMovie.classification || 'Cinema').split('|')[0].trim()}
+                        </span>
+                        {/* Large typographic title */}
+                        <h1 className="text-3xl font-black text-white leading-tight drop-shadow-2xl text-center"
+                          style={{ textShadow: `0 0 40px ${accentColor}60, 0 2px 4px rgba(0,0,0,0.9)` }}>
+                          {activeMovie.title}
+                        </h1>
+                        {/* Divider line */}
+                        <div className="w-12 h-px opacity-50" style={{ background: accentColor }} />
+                        {/* Year */}
+                        <span className="text-xs font-semibold tracking-widest opacity-50 text-white uppercase">
+                          {activeMovie.year}
+                        </span>
+                      </div>
+                      {/* Letterbox bars — cinematic feel */}
+                      <div className="absolute top-0 inset-x-0 h-[5%] bg-black opacity-70" />
+                      <div className="absolute bottom-0 inset-x-0 h-[5%] bg-black opacity-70" />
+                    </>
+                  );
+                })()}
               </div>
 
               {/* Bottom Info Gradient */}
