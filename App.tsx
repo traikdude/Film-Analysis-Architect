@@ -6,10 +6,11 @@ import { AppState, AnalysisStatus, Movie, CurationSession } from './types';
 import { generateFilmAnalysis } from './services/geminiService';
 import { parseFilmAnalysis } from './services/parser';
 import { enrichMoviesWithPosters } from './services/tmdbService';
-import { saveToHistory, loadHistory, deleteFromHistory, downloadSessionMarkdown, copySessionToClipboard } from './services/exportService';
+import { saveToHistory, loadHistory, deleteFromHistory, downloadSessionMarkdown, copySessionToClipboard, sessionToMarkdown } from './services/exportService';
+import { uploadMarkdownToDrive, DRIVE_FOLDER_ID } from './services/driveService';
 import { ALL_WATCHLIST, WatchlistMovie } from './data/erikMovieData';
 import { YEARS, THEMES } from './constants';
-import { Popcorn, Clapperboard, Heart, Sparkles, Flame, Loader2, AlertTriangle, BookOpen, Bookmark, Eye, History, Download, Copy, Trash2, Play } from 'lucide-react';
+import { Clapperboard, Heart, Flame, BookOpen, Bookmark, Eye, History, Download, Copy, Trash2, Play, CloudUpload, CheckCircle, AlertCircle, ExternalLink } from 'lucide-react';
 
 const App: React.FC = () => {
   const [state, setState] = useState<AppState>({
@@ -30,6 +31,8 @@ const App: React.FC = () => {
   const [seenMovies, setSeenMovies] = useState<Movie[]>([]);
   const [curationHistory, setCurationHistory] = useState<CurationSession[]>([]);
   const [copiedSessionId, setCopiedSessionId] = useState<string | null>(null);
+  // Drive upload state per session: id -> 'idle' | 'uploading' | { link } | 'error'
+  const [driveState, setDriveState] = useState<Record<string, 'uploading' | { link: string } | 'error'>>({});
   const [activeView, setActiveView] = useState<'curate' | 'swipe' | 'library' | 'maybe' | 'seen' | 'history'>('curate');
 
   const activeTheme = THEMES[state.themeId] || THEMES['joyful'];
@@ -173,6 +176,34 @@ const App: React.FC = () => {
     if (ok) {
       setCopiedSessionId(session.id);
       setTimeout(() => setCopiedSessionId(null), 2000);
+    }
+  };
+
+  /** Save session directly to Google Drive (NotebookLM folder) */
+  const handleDriveSave = async (session: CurationSession) => {
+    const clientId = localStorage.getItem('google_oauth_client_id') || '';
+    if (!clientId) {
+      alert('⚙️ Please add your Google OAuth Client ID in Settings → Google Drive first.');
+      return;
+    }
+
+    setDriveState(prev => ({ ...prev, [session.id]: 'uploading' }));
+    try {
+      const dateTag = new Date(session.createdAt).toISOString().slice(0, 10);
+      const genreTag = session.genres.slice(0, 3).join('-').toLowerCase().replace(/\s+/g, '_');
+      const fileName = `film-curator_${dateTag}_${genreTag}.md`;
+      const markdown = sessionToMarkdown(session);
+      const result = await uploadMarkdownToDrive(markdown, fileName, clientId);
+      setDriveState(prev => ({ ...prev, [session.id]: { link: result.webViewLink } }));
+    } catch (e: any) {
+      console.error('Drive upload error:', e);
+      setDriveState(prev => ({ ...prev, [session.id]: 'error' }));
+      // Auto-clear error after 5 seconds
+      setTimeout(() => setDriveState(prev => {
+        const n = { ...prev };
+        delete n[session.id];
+        return n;
+      }), 5000);
     }
   };
 
@@ -521,18 +552,98 @@ const App: React.FC = () => {
                               {copiedSessionId === session.id ? '✓' : 'Copy'}
                             </button>
                           </div>
+
+                          {/* Google Drive button — full width row */}
+                          {(() => {
+                            const ds = driveState[session.id];
+                            if (ds === 'uploading') {
+                              return (
+                                <button disabled className="w-full mt-2 py-2 rounded-xl bg-blue-600/15 border border-blue-500/30 text-blue-300 text-xs font-bold flex items-center justify-center gap-2 opacity-80 cursor-wait">
+                                  <span className="w-3 h-3 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
+                                  Uploading to Google Drive…
+                                </button>
+                              );
+                            }
+                            if (ds && typeof ds === 'object' && 'link' in ds) {
+                              return (
+                                <a
+                                  href={ds.link}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="w-full mt-2 py-2 rounded-xl bg-green-600/15 border border-green-500/30 text-green-300 text-xs font-bold flex items-center justify-center gap-2 hover:bg-green-600/25 transition-all"
+                                >
+                                  <CheckCircle className="w-3 h-3" />
+                                  Saved to Drive — Open File
+                                  <ExternalLink className="w-3 h-3 opacity-60" />
+                                </a>
+                              );
+                            }
+                            if (ds === 'error') {
+                              return (
+                                <button
+                                  onClick={() => handleDriveSave(session)}
+                                  className="w-full mt-2 py-2 rounded-xl bg-red-600/15 border border-red-500/30 text-red-300 text-xs font-bold flex items-center justify-center gap-2 hover:bg-red-600/25 transition-all"
+                                >
+                                  <AlertCircle className="w-3 h-3" />
+                                  Upload Failed — Retry
+                                </button>
+                              );
+                            }
+                            return (
+                              <button
+                                onClick={() => handleDriveSave(session)}
+                                className="w-full mt-2 py-2 rounded-xl bg-blue-600/15 hover:bg-blue-600/28 border border-blue-500/25 hover:border-blue-500/45 text-blue-300 text-xs font-bold flex items-center justify-center gap-2 transition-all active:scale-95"
+                                title="Save directly to your NotebookLM Google Drive folder"
+                              >
+                                <CloudUpload className="w-3 h-3" />
+                                Save to Google Drive (NotebookLM Folder)
+                              </button>
+                            );
+                          })()}
                         </div>
                       );
                     })}
                   </div>
                 )}
 
-                {/* NotebookLM tip */}
+                {/* Footer: NotebookLM tip + OAuth Client ID settings */}
                 {curationHistory.length > 0 && (
-                  <div className="mt-3 p-3 rounded-xl border border-violet-500/10 bg-violet-950/20">
-                    <p className="text-[10px] text-violet-300/60 leading-relaxed">
-                      💡 <strong className="text-violet-300/80">NotebookLM tip:</strong> Download any session as <code className="font-mono">.md</code>, then upload to <a href="https://notebooklm.google.com" target="_blank" rel="noopener noreferrer" className="underline hover:text-violet-200">notebooklm.google.com</a> → your Movies notebook as a source.
-                    </p>
+                  <div className="mt-3 space-y-2">
+                    <div className="p-3 rounded-xl border border-violet-500/10 bg-violet-950/20">
+                      <p className="text-[10px] text-violet-300/60 leading-relaxed">
+                        💡 <strong className="text-violet-300/80">NotebookLM:</strong> Hit <strong className="text-blue-300/80">Save to Drive</strong> → file lands in your <a href={`https://drive.google.com/drive/folders/${DRIVE_FOLDER_ID}`} target="_blank" rel="noopener noreferrer" className="underline hover:text-violet-200">movie folder</a> → open <a href="https://notebooklm.google.com" target="_blank" rel="noopener noreferrer" className="underline hover:text-violet-200">NotebookLM</a> → your Movies notebook → ＋ Add source → Google Drive → done.
+                      </p>
+                    </div>
+                    {/* Google OAuth Client ID setup */}
+                    <details className="rounded-xl border border-white/5 bg-black/20">
+                      <summary className="px-3 py-2 text-[10px] text-slate-500 hover:text-slate-300 cursor-pointer transition-colors select-none">
+                        ⚙️ Google Drive Setup (OAuth Client ID)
+                      </summary>
+                      <div className="px-3 pb-3 pt-1 space-y-2">
+                        <p className="text-[10px] text-slate-400 leading-relaxed">
+                          To enable Drive uploads, paste your <strong>Google OAuth 2.0 Client ID</strong> below.<br />
+                          Get one at <a href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noopener noreferrer" className="text-blue-400 underline hover:text-blue-300">console.cloud.google.com/apis/credentials</a> → Create → Web app → add <code className="font-mono text-violet-300">https://film-architect-curator.web.app</code> as an Authorized JavaScript origin.
+                        </p>
+                        <div className="flex gap-2">
+                          <input
+                            id="oauth-client-id"
+                            type="text"
+                            placeholder="Paste your Client ID here (ends in .apps.googleusercontent.com)"
+                            defaultValue={localStorage.getItem('google_oauth_client_id') || ''}
+                            className="flex-1 px-2 py-1.5 rounded-lg bg-white/5 border border-white/10 text-slate-300 text-[10px] font-mono placeholder-slate-600 focus:outline-none focus:border-violet-500/50"
+                          />
+                          <button
+                            onClick={() => {
+                              const val = (document.getElementById('oauth-client-id') as HTMLInputElement)?.value?.trim();
+                              if (val) { localStorage.setItem('google_oauth_client_id', val); alert('✅ Client ID saved!'); }
+                            }}
+                            className="px-3 py-1.5 rounded-lg bg-violet-600/25 hover:bg-violet-600/40 border border-violet-500/30 text-violet-200 text-[10px] font-bold transition-all"
+                          >
+                            Save
+                          </button>
+                        </div>
+                      </div>
+                    </details>
                   </div>
                 )}
               </div>
