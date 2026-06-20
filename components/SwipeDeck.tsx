@@ -15,7 +15,7 @@ interface SwipeDeckProps {
 // Maps genre/subcategory text → illustrated poster background
 const getGenreArt = (genre: string, title: string): string => {
   const g = (genre + ' ' + title).toLowerCase();
-  // ── Horror subcategories (most specific first) ──────────────────────
+  // ── Horror subcategories ─────────────────────────────────────────────
   if (g.match(/lovecraft|cosmic|elder god|dimensional|space horror/)) return '/genre-art/horror-cosmic.png';
   if (g.match(/folk horror|pagan|ritual|rural horror|witch|cult horror|wicker/)) return '/genre-art/horror-folk.png';
   if (g.match(/slasher|masked killer|teen slasher|serial killer|giallo|splatter/)) return '/genre-art/horror-slasher.png';
@@ -31,12 +31,21 @@ const getGenreArt = (genre: string, title: string): string => {
   if (g.match(/sci.?fi|science.?fiction|space|alien|robot|future|tech|apocalypse/)) return '/genre-art/scifi.png';
   // ── Thriller subcategories ───────────────────────────────────────────
   if (g.match(/conspiracy|cover.up|secret society|government cover|shadow organization/)) return '/genre-art/thriller-conspiracy.png';
-  if (g.match(/psychological thriller|gaslighting|manipulation|unreliable narrator|mind game/)) return '/genre-art/thriller-psychological.png';
+  if (g.match(/psychological thriller|manipulation|unreliable narrator|mind game/)) return '/genre-art/thriller-psychological.png';
   if (g.match(/noir|film noir|detective|gangster|shadowy/)) return '/genre-art/crime-noir.png';
   if (g.match(/thriller|suspense|mystery|crime|paranoia/)) return '/genre-art/thriller.png';
-  // ── Action ───────────────────────────────────────────────────────────
-  if (g.match(/action|adventure|war|combat|explosion|survival/)) return '/genre-art/action.png';
-  // ── Drama ────────────────────────────────────────────────────────────
+  // ── Action subcategories ─────────────────────────────────────────────
+  if (g.match(/martial arts|kung fu|karate|wuxia|combat sport|fight choreography/)) return '/genre-art/action-martial-arts.png';
+  if (g.match(/spy|espionage|secret agent|intelligence|covert ops|assassin/)) return '/genre-art/action-spy.png';
+  if (g.match(/action|combat|explosion|military|survival/)) return '/genre-art/action.png';
+  // ── Fantasy subcategories ────────────────────────────────────────────
+  if (g.match(/dark fantasy|cursed|shadow realm|malevolent|evil sorcerer|fallen|unholy/)) return '/genre-art/fantasy-dark.png';
+  if (g.match(/epic fantasy|high fantasy|sword and sorcery|dragon|kingdom|quest|realm|elfin/)) return '/genre-art/fantasy-epic.png';
+  // ── Adventure ────────────────────────────────────────────────────────
+  if (g.match(/adventure|explorer|expedition|jungle|ancient ruins|treasure/)) return '/genre-art/adventure-epic.png';
+  // ── Western ──────────────────────────────────────────────────────────
+  if (g.match(/western|gunslinger|frontier|saloon|cowboy|outlaw|wild west/)) return '/genre-art/western.png';
+  // ── Drama / default ──────────────────────────────────────────────────
   if (g.match(/drama|romance|indie|independent|art|emotion|family|period/)) return '/genre-art/drama.png';
   return '/genre-art/default.png';
 };
