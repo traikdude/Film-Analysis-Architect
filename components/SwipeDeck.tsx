@@ -15,21 +15,28 @@ interface SwipeDeckProps {
 // Maps genre/subcategory text → illustrated poster background
 const getGenreArt = (genre: string, title: string): string => {
   const g = (genre + ' ' + title).toLowerCase();
-  // Horror subcategories (most specific first)
+  // ── Horror subcategories (most specific first) ──────────────────────
   if (g.match(/lovecraft|cosmic|elder god|dimensional|space horror/)) return '/genre-art/horror-cosmic.png';
   if (g.match(/folk horror|pagan|ritual|rural horror|witch|cult horror|wicker/)) return '/genre-art/horror-folk.png';
   if (g.match(/slasher|masked killer|teen slasher|serial killer|giallo|splatter/)) return '/genre-art/horror-slasher.png';
   if (g.match(/body horror|transformation|medical horror|biological|parasitic|mutation/)) return '/genre-art/horror-body.png';
   if (g.match(/psychological horror|gaslighting|reality distort|isolation horror|dream|nightmare/)) return '/genre-art/horror-psychological.png';
   if (g.match(/ghost|demonic|haunted|paranormal|supernatural|spirit|angel|demon|curse|religious horror/)) return '/genre-art/horror-supernatural.png';
-  if (g.match(/horror|supernatural|zombie|vampire|werewolf|creature|monster/)) return '/genre-art/horror.png';
-  // Sci-Fi
-  if (g.match(/sci.?fi|science.?fiction|space|alien|cyber|future|robot|dystopia|apocalypse|tech/)) return '/genre-art/scifi.png';
-  // Thriller
-  if (g.match(/thriller|suspense|mystery|crime|noir|conspiracy|paranoia/)) return '/genre-art/thriller.png';
-  // Action
+  if (g.match(/horror|zombie|vampire|werewolf|creature|monster/)) return '/genre-art/horror.png';
+  // ── Sci-Fi subcategories ─────────────────────────────────────────────
+  if (g.match(/cyberpunk|neon|hacker|cyborg|neural|megacorp/)) return '/genre-art/scifi-cyberpunk.png';
+  if (g.match(/space opera|starship|galaxy|armada|empire|rebel|intergalactic/)) return '/genre-art/scifi-space-opera.png';
+  if (g.match(/dystop|totalitarian|surveillance state|oppressive future|post-apocalyptic/)) return '/genre-art/scifi-dystopia.png';
+  if (g.match(/time travel|time loop|temporal|alternate timeline|paradox/)) return '/genre-art/scifi-time-travel.png';
+  if (g.match(/sci.?fi|science.?fiction|space|alien|robot|future|tech|apocalypse/)) return '/genre-art/scifi.png';
+  // ── Thriller subcategories ───────────────────────────────────────────
+  if (g.match(/conspiracy|cover.up|secret society|government cover|shadow organization/)) return '/genre-art/thriller-conspiracy.png';
+  if (g.match(/psychological thriller|gaslighting|manipulation|unreliable narrator|mind game/)) return '/genre-art/thriller-psychological.png';
+  if (g.match(/noir|film noir|detective|gangster|shadowy/)) return '/genre-art/crime-noir.png';
+  if (g.match(/thriller|suspense|mystery|crime|paranoia/)) return '/genre-art/thriller.png';
+  // ── Action ───────────────────────────────────────────────────────────
   if (g.match(/action|adventure|war|combat|explosion|survival/)) return '/genre-art/action.png';
-  // Drama
+  // ── Drama ────────────────────────────────────────────────────────────
   if (g.match(/drama|romance|indie|independent|art|emotion|family|period/)) return '/genre-art/drama.png';
   return '/genre-art/default.png';
 };
