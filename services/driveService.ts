@@ -16,11 +16,9 @@
 export const DRIVE_FOLDER_ID = '11NvN1fP676iUJpfDahlvFJQjV5uE1W_5';
 const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.file';
 
-// ── OAuth client ─────────────────────────────────────────────────────────────
-// Replace with your OAuth 2.0 Client ID from:
-// console.cloud.google.com → APIs & Services → Credentials → Web Client
-// Make sure https://film-architect-curator.web.app is in Authorized JavaScript origins
-export const GOOGLE_CLIENT_ID = localStorage.getItem('google_oauth_client_id') || '';
+// ── Hardcoded OAuth 2.0 Client ID (project: mortalzwardrobe) ─────────────────
+// Authorized origin: https://film-architect-curator.web.app
+export const GOOGLE_CLIENT_ID = '825046261103-vl1s23l6c84v18vhc0pgmkpabfv189b8.apps.googleusercontent.com';
 
 let tokenClient: google.accounts.oauth2.TokenClient | null = null;
 let accessToken: string | null = null;

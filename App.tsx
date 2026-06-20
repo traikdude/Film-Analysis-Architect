@@ -181,19 +181,13 @@ const App: React.FC = () => {
 
   /** Save session directly to Google Drive (NotebookLM folder) */
   const handleDriveSave = async (session: CurationSession) => {
-    const clientId = localStorage.getItem('google_oauth_client_id') || '';
-    if (!clientId) {
-      alert('⚙️ Please add your Google OAuth Client ID in Settings → Google Drive first.');
-      return;
-    }
-
     setDriveState(prev => ({ ...prev, [session.id]: 'uploading' }));
     try {
       const dateTag = new Date(session.createdAt).toISOString().slice(0, 10);
       const genreTag = session.genres.slice(0, 3).join('-').toLowerCase().replace(/\s+/g, '_');
       const fileName = `film-curator_${dateTag}_${genreTag}.md`;
       const markdown = sessionToMarkdown(session);
-      const result = await uploadMarkdownToDrive(markdown, fileName, clientId);
+      const result = await uploadMarkdownToDrive(markdown, fileName, GOOGLE_CLIENT_ID);
       setDriveState(prev => ({ ...prev, [session.id]: { link: result.webViewLink } }));
     } catch (e: any) {
       console.error('Drive upload error:', e);
@@ -606,44 +600,16 @@ const App: React.FC = () => {
                   </div>
                 )}
 
-                {/* Footer: NotebookLM tip + OAuth Client ID settings */}
+
+                {/* Footer: NotebookLM workflow tip */}
                 {curationHistory.length > 0 && (
-                  <div className="mt-3 space-y-2">
-                    <div className="p-3 rounded-xl border border-violet-500/10 bg-violet-950/20">
-                      <p className="text-[10px] text-violet-300/60 leading-relaxed">
-                        💡 <strong className="text-violet-300/80">NotebookLM:</strong> Hit <strong className="text-blue-300/80">Save to Drive</strong> → file lands in your <a href={`https://drive.google.com/drive/folders/${DRIVE_FOLDER_ID}`} target="_blank" rel="noopener noreferrer" className="underline hover:text-violet-200">movie folder</a> → open <a href="https://notebooklm.google.com" target="_blank" rel="noopener noreferrer" className="underline hover:text-violet-200">NotebookLM</a> → your Movies notebook → ＋ Add source → Google Drive → done.
-                      </p>
-                    </div>
-                    {/* Google OAuth Client ID setup */}
-                    <details className="rounded-xl border border-white/5 bg-black/20">
-                      <summary className="px-3 py-2 text-[10px] text-slate-500 hover:text-slate-300 cursor-pointer transition-colors select-none">
-                        ⚙️ Google Drive Setup (OAuth Client ID)
-                      </summary>
-                      <div className="px-3 pb-3 pt-1 space-y-2">
-                        <p className="text-[10px] text-slate-400 leading-relaxed">
-                          To enable Drive uploads, paste your <strong>Google OAuth 2.0 Client ID</strong> below.<br />
-                          Get one at <a href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noopener noreferrer" className="text-blue-400 underline hover:text-blue-300">console.cloud.google.com/apis/credentials</a> → Create → Web app → add <code className="font-mono text-violet-300">https://film-architect-curator.web.app</code> as an Authorized JavaScript origin.
-                        </p>
-                        <div className="flex gap-2">
-                          <input
-                            id="oauth-client-id"
-                            type="text"
-                            placeholder="Paste your Client ID here (ends in .apps.googleusercontent.com)"
-                            defaultValue={localStorage.getItem('google_oauth_client_id') || ''}
-                            className="flex-1 px-2 py-1.5 rounded-lg bg-white/5 border border-white/10 text-slate-300 text-[10px] font-mono placeholder-slate-600 focus:outline-none focus:border-violet-500/50"
-                          />
-                          <button
-                            onClick={() => {
-                              const val = (document.getElementById('oauth-client-id') as HTMLInputElement)?.value?.trim();
-                              if (val) { localStorage.setItem('google_oauth_client_id', val); alert('✅ Client ID saved!'); }
-                            }}
-                            className="px-3 py-1.5 rounded-lg bg-violet-600/25 hover:bg-violet-600/40 border border-violet-500/30 text-violet-200 text-[10px] font-bold transition-all"
-                          >
-                            Save
-                          </button>
-                        </div>
-                      </div>
-                    </details>
+                  <div className="mt-3 p-3 rounded-xl border border-violet-500/10 bg-violet-950/20">
+                    <p className="text-[10px] text-violet-300/60 leading-relaxed">
+                      💡 <strong className="text-violet-300/80">NotebookLM:</strong> Hit <strong className="text-blue-300/80">Save to Google Drive</strong> → file lands in your{' '}
+                      <a href={`https://drive.google.com/drive/folders/${DRIVE_FOLDER_ID}`} target="_blank" rel="noopener noreferrer" className="underline hover:text-violet-200">movie folder</a>
+                      {' '}→ open <a href="https://notebooklm.google.com" target="_blank" rel="noopener noreferrer" className="underline hover:text-violet-200">NotebookLM</a>
+                      {' '}→ your Movies notebook → ＋ Add source → Google Drive → select the file → done ✅
+                    </p>
                   </div>
                 )}
               </div>
