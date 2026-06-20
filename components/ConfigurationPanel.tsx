@@ -2,17 +2,18 @@
 import React, { useState, useEffect } from 'react';
 import { AppState, GenreCategory, Theme } from '../types';
 import { GENRE_DATA, YEARS, THEMES } from '../constants';
-import { ChevronDown, Check, Clapperboard, Calendar, Sparkles, Palette, Settings, Key, X, Eye, EyeOff } from 'lucide-react';
+import { ChevronDown, Check, Clapperboard, Calendar, Sparkles, Palette, Settings, Key, X, Eye, EyeOff, BookOpen } from 'lucide-react';
 
 interface ConfigurationPanelProps {
   state: AppState;
   onUpdate: (newState: Partial<AppState>) => void;
   onGenerate: () => void;
+  onLoadWatchlist: () => void;
   isGenerating: boolean;
   theme: Theme;
 }
 
-export const ConfigurationPanel: React.FC<ConfigurationPanelProps> = ({ state, onUpdate, onGenerate, isGenerating, theme }) => {
+export const ConfigurationPanel: React.FC<ConfigurationPanelProps> = ({ state, onUpdate, onGenerate, onLoadWatchlist, isGenerating, theme }) => {
   const [showSettings, setShowSettings] = useState(false);
   const [apiKey, setApiKey] = useState('');
   const [tmdbKey, setTmdbKey] = useState('');
@@ -340,7 +341,7 @@ export const ConfigurationPanel: React.FC<ConfigurationPanelProps> = ({ state, o
         </section>
       </div>
 
-      <div className="p-6 border-t border-white/10 bg-black/40 backdrop-blur-xl">
+      <div className="p-6 border-t border-white/10 bg-black/40 backdrop-blur-xl space-y-3">
         <button
           onClick={onGenerate}
           disabled={isGenerating || Object.keys(state.selectedGenres).length === 0}
@@ -361,6 +362,22 @@ export const ConfigurationPanel: React.FC<ConfigurationPanelProps> = ({ state, o
                🚀 Generate Analysis
             </span>
           )}
+        </button>
+
+        <button
+          onClick={onLoadWatchlist}
+          disabled={isGenerating}
+          className={`w-full py-3 px-6 rounded-2xl font-bold text-sm uppercase tracking-widest transition-all duration-300
+            ${isGenerating
+              ? 'bg-slate-800/30 text-slate-600 cursor-not-allowed border border-white/5'
+              : 'bg-white/5 border border-white/15 text-slate-300 hover:bg-white/10 hover:text-white hover:border-white/25 active:scale-[0.98]'
+            }
+          `}
+        >
+          <span className="flex items-center justify-center gap-2">
+            <BookOpen className="w-4 h-4" />
+            🎬 My Watchlist (80+ Films)
+          </span>
         </button>
       </div>
     </div>

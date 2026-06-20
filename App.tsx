@@ -6,8 +6,9 @@ import { AppState, AnalysisStatus, Movie } from './types';
 import { generateFilmAnalysis } from './services/geminiService';
 import { parseFilmAnalysis } from './services/parser';
 import { enrichMoviesWithPosters } from './services/tmdbService';
+import { ALL_WATCHLIST, WatchlistMovie } from './data/erikMovieData';
 import { YEARS, THEMES } from './constants';
-import { Popcorn, Clapperboard, Heart, Sparkles, Flame, Loader2, AlertTriangle } from 'lucide-react';
+import { Popcorn, Clapperboard, Heart, Sparkles, Flame, Loader2, AlertTriangle, BookOpen } from 'lucide-react';
 
 const App: React.FC = () => {
   const [state, setState] = useState<AppState>({
@@ -70,6 +71,48 @@ const App: React.FC = () => {
     }
   };
 
+  const handleLoadWatchlist = async () => {
+    setStatus('generating');
+    setError(undefined);
+    setParsedMovies([]);
+    try {
+      // Shuffle the watchlist and take 20 random ones for the swipe deck
+      const shuffled = [...ALL_WATCHLIST].sort(() => Math.random() - 0.5);
+      const selection = shuffled.slice(0, 20);
+
+      // Convert WatchlistMovie → Movie shape
+      let movies: Movie[] = selection.map((m: WatchlistMovie, i: number) => ({
+        id: `watchlist-${i}-${m.title.replace(/\s+/g, '-').toLowerCase()}`,
+        rank: String(i + 1),
+        title: m.title,
+        year: m.year,
+        director: m.director,
+        classification: m.genre,
+        runtime: '—',
+        image: '',
+        trailer: `https://www.youtube.com/results?search_query=${encodeURIComponent(m.title + ' ' + m.year + ' trailer')}`,
+        critical_overview: m.synopsis,
+        synopsis: m.synopsis,
+        artistic_merit: '',
+        genre_analysis: m.genre,
+        cultural_impact: '',
+        key_themes: '',
+        technical_elements: '',
+      }));
+
+      // Enrich with real TMDB posters
+      const tmdbKey = localStorage.getItem('tmdb_api_key') || '';
+      movies = await enrichMoviesWithPosters(movies, tmdbKey);
+
+      setParsedMovies(movies);
+      setStatus('completed');
+      setActiveView('swipe');
+    } catch (e: any) {
+      setError(e.message || "Failed to load watchlist.");
+      setStatus('error');
+    }
+  };
+
   const handleLike = (movie: Movie) => {
     setLikedMovies(prev => {
       if (prev.some(m => m.title.toLowerCase() === movie.title.toLowerCase())) {
@@ -120,6 +163,7 @@ const App: React.FC = () => {
             state={state} 
             onUpdate={handleUpdate} 
             onGenerate={handleGenerate}
+            onLoadWatchlist={handleLoadWatchlist}
             isGenerating={status === 'generating'}
             theme={activeTheme}
           />

@@ -1,6 +1,7 @@
 import { GoogleGenAI } from "@google/genai";
 import { AppState } from "../types";
 import { GENRE_DATA, SYSTEM_INSTRUCTION_BASE } from "../constants";
+import { ERIK_TASTE_PROFILE } from "../data/erikMovieData";
 
 const getSystemInstruction = (state: AppState): string => {
   const selectedGenres = GENRE_DATA.filter(g => state.selectedGenres[g.id]);
@@ -16,6 +17,8 @@ const getSystemInstruction = (state: AppState): string => {
 ## Specific Request Parameters
 - **Time Period:** ${state.startYear} - ${state.endYear}
 - **Target Genres:** ${genreDescriptions || "General Cinema"}
+
+${ERIK_TASTE_PROFILE}
 `;
 };
 
